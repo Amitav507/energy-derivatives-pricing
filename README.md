@@ -173,17 +173,80 @@ python notebooks/multi_asset_demo.py
 | `marketdata.futures_prices` | Yahoo Finance continuous futures: gas, crude, metals | run against the live API |
 | `marketdata.rates` | FRED, SOFR and Treasury constant maturity | run against the live API |
 | `marketdata.realized_vol` | Rolling annualised volatility from log returns | exercised by the demo |
-| `marketdata.entsoe_power` | GB day-ahead power prices | written, not yet verified |
+| `marketdata.entsoe_power` | EU day-ahead power prices, ENTSOE | run against the live API |
 
-`entsoe_power` is deliberately marked apart. It needs an ENTSOE Transparency
-Platform key, and until one is available the call has not been run against the
-live API, so treat the signature as provisional. Nothing else imports it and
-the demo does not use it.
+`entsoe_power` needs a free ENTSOE Transparency Platform key, which the demo
+does not require. Two things it is worth knowing before using it. **Great
+Britain is not available, and has no clean free substitute**: since Brexit GB
+sits outside the EU internal energy market and a GB query returns
+`NoMatchingDataError` rather than an empty series. There is no direct public
+free API for GB historical day-ahead prices elsewhere either. Elexon publishes
+Market Index Data, but that is an index rather than the day-ahead price series
+itself. And European day-ahead now clears on **quarter-hourly** market
+time units, roughly 96 points a day rather than 24, which has to be carried
+through any annualisation or the answer is out by a factor of two.
 
 Rates are converted to continuous compounding before use. Treasury constant
 maturity yields are quoted bond-equivalent and SOFR is simple annualised. At
 5% rate levels, feeding those in raw costs about 6 basis points on the
 Treasury points and about 12 on SOFR.
+
+## Power, and where this library stops working
+
+Everything above assumes prices are lognormal, which is the assumption that
+makes `ln(F/K)` meaningful and guarantees the underlying stays positive. On
+European power that assumption is simply false, and not as a tail curiosity.
+
+The markets below are Dutch and German rather than British, because GB is not
+obtainable from free sources at all, for the reasons in the data note above.
+
+![Day-ahead power prices settling at or below zero, against a fitted lognormal](figures/power-negative-prices.png)
+
+Rose bars are settlements below zero and the blue bar is settlements at
+exactly zero, both driven by inflexible generation meeting low demand in high
+renewable output hours. Together they are 4.3% of Dutch and 5.6% of German
+quarter-hours across this window. The dashed curve is a lognormal fitted to
+the positive observations, and it assigns probability **zero** to every one
+of them, because its support is the strictly positive line. No recalibration
+fixes that, since the support is wrong rather than the parameters.
+
+The model also fails where it is allowed to work. That dashed curve peaks
+near 45 EUR while the observed distribution peaks near 165, and the data
+carries a long low shoulder that a single lognormal cannot reproduce. So the
+fit is poor across the positive region too, which matters more than it might
+look: it means a lognormal misprices ordinary power hours, not just the
+exceptional ones.
+
+The standard answer to the first failure is a Bachelier model, where the
+forward diffuses arithmetically (`dF = σ dW`) rather than geometrically and
+admits negative prices naturally. That is the next model to add here, and
+this figure is why it comes before the volatility surface.
+
+The second failure needs something else, because Bachelier is also unimodal.
+The shape here is the merit order showing through: hours where renewables
+cover most of demand clear low on the supply stack, hours set by gas cluster
+near its marginal cost, and scarcity hours spike. Reproducing that calls for
+mean reversion with regime switching or jumps, or a structural model of the
+stack itself, rather than any single diffusion.
+
+One honest qualification on all of this. These are **spot** prices, and
+options are written on forwards covering a delivery period, which average
+over exactly the hour-to-hour variation producing this shape. A lognormal
+fits a monthly baseload forward considerably better than it fits this
+histogram. The support problem survives that averaging, since a forward over
+a period whose expected average is negative is itself negative, and shaped
+products concentrated in solar hours get there readily. The shape problem
+largely does not survive it. So of the two failures, the one that actually
+governs option pricing here is the first, which is the one Bachelier fixes.
+
+Worth being clear about what this figure is and is not. It is day-ahead
+**spot**, which is what free data gives you. Options are written on
+**forwards**, which sit behind ICE, EEX and vendor terminals. So this
+motivates the model choice rather than demonstrating a priced power option.
+
+Regenerate with `python scripts/make_power_figure.py`, which needs an ENTSOE
+key in `ENTSOE_API_KEY`. The counts and the date live in the figure itself,
+so they stay accurate to when it was drawn.
 
 ## Project layout
 
@@ -214,8 +277,9 @@ a pricing system.
   systematically below implied. Calibrating to a quoted surface needs vendor
   data that is not freely available.
 - **Lognormal only.** Power prices go negative and WTI settled negative in
-  April 2020. A lognormal model cannot represent that at all. A Bachelier
-  model is the standard answer and is not implemented yet.
+  April 2020. A lognormal model cannot represent that at all, as the power
+  section above shows against live data. A Bachelier model is the standard
+  answer and is the next thing to implement.
 - **European exercise only.** NYMEX crude options are American style.
 - **Vanilla payoffs only.** No Asian options, which dominate oil products,
   and no spread options, which is how spark and dark spreads are priced.

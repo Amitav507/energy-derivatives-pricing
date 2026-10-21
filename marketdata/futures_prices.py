@@ -24,7 +24,7 @@ try:
 except ImportError as exc:  # pragma: no cover - import guard for clearer error
     raise ImportError(
         "yfinance is required for marketdata.futures_prices. Install with: "
-        "pip install black-scholes-engine[data]  (or: pip install yfinance)"
+        "pip install energy-derivatives-pricing[data]  (or: pip install yfinance)"
     ) from exc
 
 

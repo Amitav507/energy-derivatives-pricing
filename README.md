@@ -41,6 +41,30 @@ print(option.implied_volatility(market_price=0.30))
 Greeks come back in raw units. Divide vega by 100 for a one volatility point
 move, theta by 365 for a day of decay, and rho by 100 for a 1% rate move.
 
+![Delta, gamma and vega across strikes](figures/greek-profiles.png)
+
+Three things in that figure are worth more than the shapes themselves.
+
+**Delta tops out at the discount factor, not at 1.** Under Black-76 delta is
+`e^(-rT)·N(d1)`, so even a call certain to be exercised shows 0.98 here
+rather than 1.00. The payoff arrives at expiry, not today.
+
+**Delta at the forward is 0.545, not 0.50.** The rule of thumb that an
+at-the-money option has a delta of a half is off by four and a half points at
+these parameters, because `d1 = ½σ√T` is strictly positive. The gap widens
+with volatility and maturity, so it is largest exactly where energy options
+live.
+
+**Gamma and vega peak above the forward, and at the same strike.** Both carry
+`φ(d1)`, maximised when `d1 = 0`, which is `K = F·exp(½σ²T)` = 104.1 here
+rather than 100. That strike is the delta-neutral straddle, which is why
+volatility surfaces quoted by delta use it as the at-the-money convention
+instead of `K = F`.
+
+Vega reads 0.276 per volatility point against an option worth 11.02, so a
+single point of volatility is about 2.5% of the option's value. That ratio is
+why a scalar sigma is the weakest assumption in this library.
+
 ## Why Black-76 rather than Black-Scholes
 
 Energy and commodity options are written on forwards and futures, not on
@@ -80,6 +104,28 @@ itself: `py_vollib` goes through `scipy.stats.norm.cdf`, this library uses
 numerical routes to the same number. `tests/test_monte_carlo.py` asserts they
 agree within four standard errors, which is a statistical test rather than an
 arbitrary tolerance.
+
+![Monte Carlo converging on the Black-76 closed form](figures/mc-convergence.png)
+
+The shaded band is two standard errors, so it should contain the true value
+about 95% of the time, and it contains the closed form at every path count
+drawn. That is the test passing, as a picture.
+
+Two details matter more than the convergence itself. The estimate scatters to
+both sides of the line rather than creeping up from below, which is what an
+unbiased estimator looks like. And the band narrows as `1/sqrt(N)`, so the
+five hundredfold rise in paths across this chart buys only about a twentyfold
+reduction in error. That cost structure is why simulation is expensive when
+you want precision and cheap when you want structure, and it is the reason
+closed forms are still worth having.
+
+At a thousand paths the estimate is unusable: the band spans roughly three
+points on an option worth 15.23, a fifth of its value. This is why the test
+asserts agreement in standard errors rather than against a fixed tolerance,
+which would be meaningless without stating the path count alongside it.
+
+Both figures regenerate from `scripts/make_figures.py` and use no live market
+data, so they stay correct.
 
 **Against no-arbitrage identities.** Put-call parity in both the spot and
 futures forms, no-arbitrage price bounds, Greek sign and bound conditions,
@@ -122,17 +168,22 @@ pip install -e ".[data]"
 python notebooks/multi_asset_demo.py
 ```
 
-| Module | Source |
-|---|---|
-| `marketdata.futures_prices` | Yahoo Finance continuous futures: gas, crude, metals |
-| `marketdata.rates` | FRED, SOFR and Treasury constant maturity |
-| `marketdata.realized_vol` | Rolling annualised volatility from log returns |
-| `marketdata.entsoe_power` | UK day-ahead power prices, needs a free ENTSOE key |
+| Module | Source | Status |
+|---|---|---|
+| `marketdata.futures_prices` | Yahoo Finance continuous futures: gas, crude, metals | run against the live API |
+| `marketdata.rates` | FRED, SOFR and Treasury constant maturity | run against the live API |
+| `marketdata.realized_vol` | Rolling annualised volatility from log returns | exercised by the demo |
+| `marketdata.entsoe_power` | GB day-ahead power prices | written, not yet verified |
+
+`entsoe_power` is deliberately marked apart. It needs an ENTSOE Transparency
+Platform key, and until one is available the call has not been run against the
+live API, so treat the signature as provisional. Nothing else imports it and
+the demo does not use it.
 
 Rates are converted to continuous compounding before use. Treasury constant
-maturity yields are quoted bond-equivalent and SOFR is simple annualised, and
-mixing those conventions into a pricing model is a roughly 12 basis point
-error at 5% rate levels.
+maturity yields are quoted bond-equivalent and SOFR is simple annualised. At
+5% rate levels, feeding those in raw costs about 6 basis points on the
+Treasury points and about 12 on SOFR.
 
 ## Project layout
 

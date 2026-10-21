@@ -15,6 +15,7 @@ data = [
     "requests>=2.28",
 ]
 entsoe = ["entsoe-py>=0.6"]
+figures = ["matplotlib>=3.7"]
 
 [build-system]
 requires = ["setuptools>=61.0"]

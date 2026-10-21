@@ -6,8 +6,9 @@ needing an API key just to get a handful of rate points.
 Compounding: the pricing engine wants a *continuously compounded* rate, but
 FRED publishes these series on their market conventions — Treasury constant
 maturity yields are bond-equivalent (semiannual), overnight rates are simple
-annualized. They are converted here rather than fed in raw; at 5% the error
-from ignoring this is ~12bp, which is not noise for a rates-sensitive Greek
+annualized. They are converted here rather than fed in raw. At 5% rate levels
+the error from ignoring this is about 6bp on a semiannual quote and about
+12bp on a simple one, neither of which is noise for a rates-sensitive Greek
 like rho.
 """
 

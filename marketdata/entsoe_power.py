@@ -8,9 +8,10 @@ and capacity, not price. For gas, Henry Hub via `marketdata.futures_prices`
 (ticker NG=F) remains the best free proxy in this project.
 
 Requires:
-    pip install black-scholes-engine[entsoe]
-    A free API key from https://transparencyplatform.eu (register, then
-    generate a token under your account's "Web API Security Token" settings).
+    pip install energy-derivatives-pricing[entsoe]
+    A free API key from the ENTSOE Transparency Platform
+    (https://transparency.entsoe.eu): register, then generate a token under
+    your account's "Web API Security Token" settings.
 
 This gives you a day-ahead price series (EUR/MWh, spot — not a forward
 curve), useful as a realized-vol input for a UK power option demo. It is not
@@ -27,7 +28,7 @@ try:
 except ImportError as exc:  # pragma: no cover
     raise ImportError(
         "entsoe-py is required for marketdata.entsoe_power. Install with: "
-        "pip install black-scholes-engine[entsoe]  (or: pip install entsoe-py)"
+        "pip install energy-derivatives-pricing[entsoe]  (or: pip install entsoe-py)"
     ) from exc
 
 GB_BIDDING_ZONE = "GB"
